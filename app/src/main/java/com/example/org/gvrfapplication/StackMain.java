@@ -11,6 +11,7 @@ import org.gearvrf.GVRPointLight;
 import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
+import org.gearvrf.GVRTransform;
 import org.gearvrf.utility.Log;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -20,8 +21,7 @@ import org.gearvrf.scene_objects.GVRCubeSceneObject;
 import java.util.Random;
 
 
-public class StackMain extends GVRMain
-{
+public class StackMain extends GVRMain {
     //-------------------------------------------------------------------------
     // constants
     //-------------------------------------------------------------------------
@@ -50,9 +50,11 @@ public class StackMain extends GVRMain
     private int mStackHeight = 0;
     private Vector2f mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
     private GVRMesh mBlockMesh;
-    private Block mCurrentBlock = null;
     private Block mRootBlock = null;
-    private boolean mBlockDirToggle = false;
+    private Block mCurrentBlock = null;
+    private Block mPreviousBlock = null;
+    private boolean mMoveAlongX = false;
+    private boolean mButtonPressed = false;
 
 
     //-------------------------------------------------------------------------
@@ -60,8 +62,7 @@ public class StackMain extends GVRMain
     //-------------------------------------------------------------------------
 
     @Override
-    public void onInit(GVRContext context)
-    {
+    public void onInit(GVRContext context) {
         mContext = context;
         mScene = mContext.getMainScene();
 
@@ -74,11 +75,10 @@ public class StackMain extends GVRMain
 
 
     @Override
-    public void onStep()
-    {
+    public void onStep() {
         mStateElapsedTime = System.currentTimeMillis() - mStateStartTime;
 
-        switch(mState) {
+        switch (mState) {
             default:
             case NONE:
                 break;
@@ -99,10 +99,10 @@ public class StackMain extends GVRMain
     // public funcs
     //-------------------------------------------------------------------------
 
-    public void onTouchEvent(MotionEvent event)
-    {
+    public void onTouchEvent(MotionEvent event) {
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
+                mButtonPressed = true;
                 break;
 
             default:
@@ -115,27 +115,24 @@ public class StackMain extends GVRMain
     // private funcs
     //-------------------------------------------------------------------------
 
-    private void setState(State state)
-    {
+    private void setState(State state) {
         if (state != mState) {
             mState = state;
             mStateStartTime = System.currentTimeMillis();
             mStateElapsedTime = 0;
-            Log.d("Stack", "StackMain.setState("+mState+")");
+            Log.d("Stack", "StackMain.setState(" + mState + ")");
         }
     }
 
 
-    private void initCamera()
-    {
+    private void initCamera() {
         mScene.getMainCameraRig().getLeftCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
         mScene.getMainCameraRig().getRightCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
         mScene.getMainCameraRig().getTransform().setPosition(2.0f, 2.0f, 0.0f);
     }
 
 
-    private void initReticle()
-    {
+    private void initReticle() {
         //GVRSceneObject headTracker = new GVRSceneObject(context,
         //        context.createQuad(0.1f, 0.1f),
         //        context.loadTexture(new GVRAndroidResource(context, R.drawable.headtrackingpointer)));
@@ -146,16 +143,14 @@ public class StackMain extends GVRMain
     }
 
 
-    private void initScene()
-    {
+    private void initScene() {
         createLights();
 
         mBlockMesh = new GVRCubeSceneObject(mContext, true).getRenderData().getMesh();
     }
 
 
-    private void createLights()
-    {
+    private void createLights() {
         GVRSceneObject lightObject = new GVRSceneObject(mContext);
         GVRPointLight light = new GVRPointLight(mContext);
         float ambientIntensity = 0.5f;
@@ -190,85 +185,142 @@ public class StackMain extends GVRMain
         directLightObject.attachLight(directLight);
     }
 
-    private Block createBlock(Vector2f dimensions)
-    {
-        Log.d("Stack", "StackMain.createBlock() dimensions:"+dimensions+"");
+
+    private Block createBlock(Vector2f dimensions) {
+        Log.d("Stack", "StackMain.createBlock() dimensions:" + dimensions + "");
         GVRSceneObject blockObject = new GVRSceneObject(mContext, mBlockMesh);
         GVRRenderData rdata = blockObject.getRenderData();
-        blockObject.setName("block "+mStackHeight);
+        blockObject.setName("block " + mStackHeight);
         rdata.setShaderTemplate(GVRPhongShader.class);
         rdata.setAlphaBlend(true);
 
         GVRMaterial material = new GVRMaterial(mContext);
-        if (mStackHeight == 0) {
-            material.setDiffuseColor(1.0f, 0.0f, 0.0f, 1.0f);
-        }
-        else if (mStackHeight == 1) {
-            material.setDiffuseColor(0.0f, 1.0f, 0.0f, 1.0f);
-            blockObject.getTransform().setPositionX(1.5f);
-        }
-        else {
-            material.setDiffuseColor(0.0f, 0.0f, 1.0f, 1.0f);
-        }
- //       Random rand = new Random();
-//        float red = rand.nextFloat();
-//        float green = rand.nextFloat();
-//        float blue = rand.nextFloat();
-//        //material.setAmbientColor(0.2f, 1.0f, 0.2f, 1.0f);
-//        //material.setDiffuseColor(1.0f, 0.0f, 0.0f, 0.5f);
-//        material.setDiffuseColor(red, green, blue, 1.0f);
+        Random rand = new Random();
+        float red = rand.nextFloat();
+        float green = rand.nextFloat();
+        float blue = rand.nextFloat();
+        material.setDiffuseColor(red, green, blue, 1.0f);
         rdata.setMaterial(material);
         rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
         //blockObject.getTransform().setScale(dimensions.x, 0.2f, dimensions.y);
 
-        Block block = new Block(mContext, mBlockDirToggle);
+        Block block = new Block(mContext, mMoveAlongX);
         blockObject.attachComponent(block);
 
         return block;
     }
 
-    private void startIntro()
-    {
+
+    private void startIntro() {
         mStackHeight = 0;
         mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
         mRootBlock = createBlock(mCurrentDimensions);
+        mCurrentBlock = mRootBlock;
         mScene.addSceneObject(mRootBlock.getOwnerObject());
 
         setState(State.INTRO);
     }
 
-    private void updateIntro()
-    {
-        // TODO: wait for button press
-        startPlaying();
-    }
 
-    private void startPlaying()
-    {
-        setState(State.PLAYING);
-    }
-
-    private void updatePlaying()
-    {
-        if (mCurrentBlock == null) {
-            mStackHeight += 1;
-            mBlockDirToggle = !mBlockDirToggle;
-            mCurrentBlock = createBlock(mCurrentDimensions);
-            mRootBlock.getOwnerObject().addChildObject(mCurrentBlock.getOwnerObject());
-            mScene.bindShaders(mRootBlock.getOwnerObject());
-            mCurrentBlock.setAnimating(true);
+    private void updateIntro() {
+        if (mButtonPressed) {
+            mButtonPressed = false;
+            startPlaying();
         }
     }
 
-    private void startGameOver()
-    {
+
+    private void startPlaying() {
+        setState(State.PLAYING);
+        stackBlock();
+    }
+
+
+    private void updatePlaying() {
+        if (mButtonPressed) {
+            mButtonPressed = false;
+            boolean stacked = stackBlock();
+            if (!stacked) {
+                startGameOver();
+            }
+        }
+    }
+
+
+    private void startGameOver() {
         setState(State.GAME_OVER);
     }
 
-    private void updateGameOver()
+
+    private void updateGameOver() {
+        if (mButtonPressed) {
+            mButtonPressed = false;
+            cleanUp();
+            startIntro();
+        }
+    }
+
+
+    private boolean stackBlock() {
+        Log.d("Stack", "stackBlock");
+
+         if (mCurrentBlock != mRootBlock) {
+
+            mCurrentBlock.setAnimating(false);
+
+            // determine overlap
+            Vector2f currentXZ = new Vector2f(mCurrentBlock.getOwnerObject().getTransform().getPositionZ(), mCurrentBlock.getOwnerObject().getTransform().getPositionZ());
+            Vector2f previousXZ = new Vector2f(mPreviousBlock.getOwnerObject().getTransform().getPositionZ(), mPreviousBlock.getOwnerObject().getTransform().getPositionZ());
+            Vector2f diffXZ = currentXZ.sub(previousXZ);
+            float distance = diffXZ.length();
+
+             boolean overlap = true;
+
+             if (mMoveAlongX) {
+                overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleX();
+             } else {
+                overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleZ();
+             }
+
+            Log.d("Stack", "overlap:"+overlap+"   distance:"+distance);
+
+            if (overlap) {
+                // parent block to stack
+                float y = mCurrentBlock.getOwnerObject().getTransform().getPositionY() - mRootBlock.getOwnerObject().getTransform().getPositionY();
+                mScene.removeSceneObject(mCurrentBlock.getOwnerObject());
+                mRootBlock.getOwnerObject().addChildObject(mCurrentBlock.getOwnerObject());
+                mScene.bindShaders(mRootBlock.getOwnerObject());
+                mCurrentBlock.getOwnerObject().getTransform().setPositionY(y);
+            }
+            else {
+                return false;
+            }
+        }
+
+        mPreviousBlock = mCurrentBlock;
+
+        mStackHeight += 1;
+
+        mMoveAlongX = !mMoveAlongX;
+
+        mCurrentBlock = createBlock(mCurrentDimensions);
+
+        mScene.addSceneObject(mCurrentBlock.getOwnerObject());
+
+        mCurrentBlock.setAnimating(true);
+
+        mRootBlock.moveDown();
+
+        return true;
+    }
+
+
+    private void cleanUp()
     {
-        // TODO: wait for button press
-        startIntro();
+        mScene.removeSceneObject(mRootBlock.getOwnerObject());
+        mRootBlock = null;
+        mPreviousBlock = null;
+        mCurrentBlock = null;
     }
 
 }
