@@ -15,7 +15,6 @@ public class Block extends GVRBehavior {
 
     public static final float MOVE_LIMIT = 2.0f;
     public static final float MOVE_SPEED = 1.0f;
-    public static final float MOVE_DOWN_DISTANCE = 1.0f;
     public static final float MOVE_DOWN_SPEED = 1.0f;
 
 
@@ -26,6 +25,7 @@ public class Block extends GVRBehavior {
     private boolean mAnimating = false;
     private boolean mMoveAlongX = true;
     private boolean mMoveForward= true;
+    private float mBlockHeight = 0f;
     private float mTargetHeight = 0f;
 
 
@@ -33,9 +33,10 @@ public class Block extends GVRBehavior {
     // public funcs
     //-------------------------------------------------------------------------
 
-    Block(GVRContext context, boolean moveAlongX) {
+    Block(GVRContext context, boolean moveAlongX, float blockHeight) {
         super(context);
         mMoveAlongX = moveAlongX;
+        mBlockHeight = blockHeight;
     }
 
     public void onDrawFrame(float frameTime)
@@ -55,7 +56,7 @@ public class Block extends GVRBehavior {
 
     public void moveDown()
     {
-        mTargetHeight = getOwnerObject().getTransform().getPositionY() - MOVE_DOWN_DISTANCE;
+        mTargetHeight = getOwnerObject().getTransform().getPositionY() - mBlockHeight;
     }
 
 

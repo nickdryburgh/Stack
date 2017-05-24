@@ -33,7 +33,7 @@ public class StackMain extends GVRMain {
         GAME_OVER;
     }
 
-    public static final float BLOCK_HEIGHT = 0.05f;
+    public static final float BLOCK_HEIGHT = 0.2f;
     public static final float START_WIDTH = 0.5f;
     public static final float START_DEPTH = 0.5f;
 
@@ -202,9 +202,8 @@ public class StackMain extends GVRMain {
         material.setDiffuseColor(red, green, blue, 1.0f);
         rdata.setMaterial(material);
         rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
-        //blockObject.getTransform().setScale(dimensions.x, 0.2f, dimensions.y);
 
-        Block block = new Block(mContext, mMoveAlongX);
+        Block block = new Block(mContext, mMoveAlongX, BLOCK_HEIGHT);
         blockObject.attachComponent(block);
 
         return block;
@@ -217,6 +216,7 @@ public class StackMain extends GVRMain {
         mRootBlock = createBlock(mCurrentDimensions);
         mCurrentBlock = mRootBlock;
         mScene.addSceneObject(mRootBlock.getOwnerObject());
+        mRootBlock.getTransform().setPositionY(-0.5f);
 
         setState(State.INTRO);
     }
@@ -262,35 +262,52 @@ public class StackMain extends GVRMain {
 
 
     private boolean stackBlock() {
-        Log.d("Stack", "stackBlock");
+        Log.d("Stack", "stackBlock "+mStackHeight);
 
          if (mCurrentBlock != mRootBlock) {
 
             mCurrentBlock.setAnimating(false);
 
             // determine overlap
-            Vector2f currentXZ = new Vector2f(mCurrentBlock.getOwnerObject().getTransform().getPositionZ(), mCurrentBlock.getOwnerObject().getTransform().getPositionZ());
-            Vector2f previousXZ = new Vector2f(mPreviousBlock.getOwnerObject().getTransform().getPositionZ(), mPreviousBlock.getOwnerObject().getTransform().getPositionZ());
+            Vector2f currentXZ = new Vector2f(mCurrentBlock.getOwnerObject().getTransform().getPositionX(), mCurrentBlock.getOwnerObject().getTransform().getPositionZ());
+            Vector2f previousXZ = new Vector2f(mPreviousBlock.getOwnerObject().getTransform().getPositionX(), mPreviousBlock.getOwnerObject().getTransform().getPositionZ());
             Vector2f diffXZ = currentXZ.sub(previousXZ);
             float distance = diffXZ.length();
 
-             boolean overlap = true;
+            boolean overlap = true;
 
-             if (mMoveAlongX) {
+
+            float newScaleX = mCurrentBlock.getOwnerObject().getTransform().getScaleX();
+            float newScaleZ = mCurrentBlock.getOwnerObject().getTransform().getScaleZ();
+            float newPositionX = mCurrentBlock.getOwnerObject().getTransform().getPositionX();
+            float newPositionZ = mCurrentBlock.getOwnerObject().getTransform().getPositionZ();
+            if (mMoveAlongX) {
                 overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleX();
-             } else {
+                newScaleX = mCurrentBlock.getOwnerObject().getTransform().getScaleX() - distance;
+                float diffX = mCurrentBlock.getOwnerObject().getTransform().getPositionX() - mPreviousBlock.getOwnerObject().getTransform().getPositionX();
+                newPositionX = newPositionX - diffX/2.0f;
+            } else {
                 overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleZ();
-             }
+                newScaleZ = mCurrentBlock.getOwnerObject().getTransform().getScaleZ() - distance;
+                float diffZ = mCurrentBlock.getOwnerObject().getTransform().getPositionZ() - mPreviousBlock.getOwnerObject().getTransform().getPositionZ();
+                newPositionZ = newPositionZ - diffZ/2.0f;
+            }
 
-            Log.d("Stack", "overlap:"+overlap+"   distance:"+distance);
+            Log.d("Stack", "mMoveAlongX:"+mMoveAlongX+"  overlap:"+overlap+"  distance:"+distance);
 
-            if (overlap) {
-                // parent block to stack
-                float y = mCurrentBlock.getOwnerObject().getTransform().getPositionY() - mRootBlock.getOwnerObject().getTransform().getPositionY();
-                mScene.removeSceneObject(mCurrentBlock.getOwnerObject());
-                mRootBlock.getOwnerObject().addChildObject(mCurrentBlock.getOwnerObject());
-                mScene.bindShaders(mRootBlock.getOwnerObject());
-                mCurrentBlock.getOwnerObject().getTransform().setPositionY(y);
+            // parent block to stack
+            float y = mCurrentBlock.getOwnerObject().getTransform().getPositionY() - mRootBlock.getOwnerObject().getTransform().getPositionY();
+            mScene.removeSceneObject(mCurrentBlock.getOwnerObject());
+            mRootBlock.getOwnerObject().addChildObject(mCurrentBlock.getOwnerObject());
+            mScene.bindShaders(mRootBlock.getOwnerObject());
+            mCurrentBlock.getOwnerObject().getTransform().setPositionY(y);
+
+             if (overlap) {
+                 // trim
+                mCurrentBlock.getOwnerObject().getTransform().setScaleX(newScaleX);
+                mCurrentBlock.getOwnerObject().getTransform().setScaleZ(newScaleZ);
+                mCurrentBlock.getOwnerObject().getTransform().setPositionX(newPositionX);
+                mCurrentBlock.getOwnerObject().getTransform().setPositionZ(newPositionZ);
             }
             else {
                 return false;
@@ -303,7 +320,13 @@ public class StackMain extends GVRMain {
 
         mMoveAlongX = !mMoveAlongX;
 
+        // new block
         mCurrentBlock = createBlock(mCurrentDimensions);
+        mCurrentBlock.getOwnerObject().getTransform().setScaleX(mPreviousBlock.getOwnerObject().getTransform().getScaleX());
+        mCurrentBlock.getOwnerObject().getTransform().setScaleZ(mPreviousBlock.getOwnerObject().getTransform().getScaleZ());
+        mCurrentBlock.getOwnerObject().getTransform().setPositionX(mPreviousBlock.getOwnerObject().getTransform().getPositionX());
+        mCurrentBlock.getOwnerObject().getTransform().setPositionZ(mPreviousBlock.getOwnerObject().getTransform().getPositionZ());
+        mCurrentBlock.getTransform().setScaleY(BLOCK_HEIGHT);
 
         mScene.addSceneObject(mCurrentBlock.getOwnerObject());
 
