@@ -28,7 +28,7 @@ public class StackMain extends GVRMain
 
     private enum State {
         NONE,
-        START,
+        INTRO,
         PLAYING,
         GAME_OVER;
     }
@@ -45,9 +45,14 @@ public class StackMain extends GVRMain
     private GVRContext mContext;
     private GVRScene mScene = null;
     private State mState = State.NONE;
+    private long mStateStartTime = 0;
+    private long mStateElapsedTime = 0;
     private int mStackHeight = 0;
     private Vector2f mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
     private GVRMesh mBlockMesh;
+    private Block mCurrentBlock = null;
+    private Block mRootBlock = null;
+    private boolean mBlockDirToggle = false;
 
 
     //-------------------------------------------------------------------------
@@ -64,13 +69,29 @@ public class StackMain extends GVRMain
         initReticle();
         initScene();
 
-        startGame();
+        startIntro();
     }
 
 
     @Override
     public void onStep()
     {
+        mStateElapsedTime = System.currentTimeMillis() - mStateStartTime;
+
+        switch(mState) {
+            default:
+            case NONE:
+                break;
+            case INTRO:
+                updateIntro();
+                break;
+            case PLAYING:
+                updatePlaying();
+                break;
+            case GAME_OVER:
+                updateGameOver();
+                break;
+        }
     }
 
 
@@ -98,6 +119,8 @@ public class StackMain extends GVRMain
     {
         if (state != mState) {
             mState = state;
+            mStateStartTime = System.currentTimeMillis();
+            mStateElapsedTime = 0;
             Log.d("Stack", "StackMain.setState("+mState+")");
         }
     }
@@ -107,7 +130,7 @@ public class StackMain extends GVRMain
     {
         mScene.getMainCameraRig().getLeftCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
         mScene.getMainCameraRig().getRightCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
-        mScene.getMainCameraRig().getTransform().setPositionX(2.0f);
+        mScene.getMainCameraRig().getTransform().setPosition(2.0f, 2.0f, 0.0f);
     }
 
 
@@ -167,30 +190,85 @@ public class StackMain extends GVRMain
         directLightObject.attachLight(directLight);
     }
 
-
-    private void startGame()
+    private Block createBlock(Vector2f dimensions)
     {
-       float height = mStackHeight * BLOCK_HEIGHT;
-        Vector3f dimensions = new Vector3f(mCurrentDimensions.x(), BLOCK_HEIGHT, mCurrentDimensions.y());
-        Block startBlock = new Block(mContext, dimensions);
-        mStackHeight = 1;
-
-        // TODO: create a block
+        Log.d("Stack", "StackMain.createBlock() dimensions:"+dimensions+"");
         GVRSceneObject blockObject = new GVRSceneObject(mContext, mBlockMesh);
         GVRRenderData rdata = blockObject.getRenderData();
         blockObject.setName("block "+mStackHeight);
         rdata.setShaderTemplate(GVRPhongShader.class);
         rdata.setAlphaBlend(true);
-        GVRMaterial material = new GVRMaterial(mContext);
-        material.setAmbientColor(0.2f, 1.0f, 0.2f, 1.0f);
-        material.setDiffuseColor(1.0f, 0.0f, 0.0f, 0.5f);
-        rdata.setMaterial(material);
-        blockObject.attachComponent(startBlock);
-        rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
-        blockObject.getTransform().setPosition(0.0f, -2.0f, -2.0f);
-        mScene.addSceneObject(blockObject);
 
-        setState(State.START);
+        GVRMaterial material = new GVRMaterial(mContext);
+        if (mStackHeight == 0) {
+            material.setDiffuseColor(1.0f, 0.0f, 0.0f, 1.0f);
+        }
+        else if (mStackHeight == 1) {
+            material.setDiffuseColor(0.0f, 1.0f, 0.0f, 1.0f);
+            blockObject.getTransform().setPositionX(1.5f);
+        }
+        else {
+            material.setDiffuseColor(0.0f, 0.0f, 1.0f, 1.0f);
+        }
+ //       Random rand = new Random();
+//        float red = rand.nextFloat();
+//        float green = rand.nextFloat();
+//        float blue = rand.nextFloat();
+//        //material.setAmbientColor(0.2f, 1.0f, 0.2f, 1.0f);
+//        //material.setDiffuseColor(1.0f, 0.0f, 0.0f, 0.5f);
+//        material.setDiffuseColor(red, green, blue, 1.0f);
+        rdata.setMaterial(material);
+        rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
+        //blockObject.getTransform().setScale(dimensions.x, 0.2f, dimensions.y);
+
+        Block block = new Block(mContext, mBlockDirToggle);
+        blockObject.attachComponent(block);
+
+        return block;
+    }
+
+    private void startIntro()
+    {
+        mStackHeight = 0;
+        mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
+        mRootBlock = createBlock(mCurrentDimensions);
+        mScene.addSceneObject(mRootBlock.getOwnerObject());
+
+        setState(State.INTRO);
+    }
+
+    private void updateIntro()
+    {
+        // TODO: wait for button press
+        startPlaying();
+    }
+
+    private void startPlaying()
+    {
+        setState(State.PLAYING);
+    }
+
+    private void updatePlaying()
+    {
+        if (mCurrentBlock == null) {
+            mStackHeight += 1;
+            mBlockDirToggle = !mBlockDirToggle;
+            mCurrentBlock = createBlock(mCurrentDimensions);
+            mRootBlock.getOwnerObject().addChildObject(mCurrentBlock.getOwnerObject());
+            mScene.bindShaders(mRootBlock.getOwnerObject());
+            mCurrentBlock.setAnimating(true);
+        }
+    }
+
+    private void startGameOver()
+    {
+        setState(State.GAME_OVER);
+    }
+
+    private void updateGameOver()
+    {
+        // TODO: wait for button press
+        startIntro();
     }
 
 }
