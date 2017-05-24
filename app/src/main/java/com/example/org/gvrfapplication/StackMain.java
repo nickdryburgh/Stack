@@ -36,6 +36,8 @@ public class StackMain extends GVRMain {
     public static final float BLOCK_HEIGHT = 0.2f;
     public static final float START_WIDTH = 0.5f;
     public static final float START_DEPTH = 0.5f;
+    public static final float MOVE_LIMIT = 2.0f;
+    public static final float SPEED_PROGRESSION = 0.05f;
 
 
     //-------------------------------------------------------------------------
@@ -55,6 +57,7 @@ public class StackMain extends GVRMain {
     private Block mPreviousBlock = null;
     private boolean mMoveAlongX = false;
     private boolean mButtonPressed = false;
+    private float mGameSpeed = 1.0f;
 
 
     //-------------------------------------------------------------------------
@@ -128,7 +131,7 @@ public class StackMain extends GVRMain {
     private void initCamera() {
         mScene.getMainCameraRig().getLeftCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
         mScene.getMainCameraRig().getRightCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
-        mScene.getMainCameraRig().getTransform().setPosition(2.0f, 2.0f, 0.0f);
+        mScene.getMainCameraRig().getTransform().setPosition(1.0f, 1.0f, 0.0f);
     }
 
 
@@ -203,7 +206,7 @@ public class StackMain extends GVRMain {
         rdata.setMaterial(material);
         rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
 
-        Block block = new Block(mContext, mMoveAlongX, BLOCK_HEIGHT);
+        Block block = new Block(mContext, mMoveAlongX, BLOCK_HEIGHT, MOVE_LIMIT, mGameSpeed);
         blockObject.attachComponent(block);
 
         return block;
@@ -212,17 +215,19 @@ public class StackMain extends GVRMain {
 
     private void startIntro() {
         mStackHeight = 0;
+        mGameSpeed = 1.0f;
         mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
         mRootBlock = createBlock(mCurrentDimensions);
         mCurrentBlock = mRootBlock;
         mScene.addSceneObject(mRootBlock.getOwnerObject());
-        mRootBlock.getTransform().setPositionY(-0.5f);
+        mRootBlock.getTransform().setPositionY(-0.4f);
 
         setState(State.INTRO);
     }
 
 
-    private void updateIntro() {
+    private void updateIntro()
+    {
         if (mButtonPressed) {
             mButtonPressed = false;
             startPlaying();
@@ -237,7 +242,7 @@ public class StackMain extends GVRMain {
 
 
     private void updatePlaying() {
-        if (mButtonPressed) {
+         if (mButtonPressed) {
             mButtonPressed = false;
             boolean stacked = stackBlock();
             if (!stacked) {
@@ -326,6 +331,12 @@ public class StackMain extends GVRMain {
         mCurrentBlock.getOwnerObject().getTransform().setScaleZ(mPreviousBlock.getOwnerObject().getTransform().getScaleZ());
         mCurrentBlock.getOwnerObject().getTransform().setPositionX(mPreviousBlock.getOwnerObject().getTransform().getPositionX());
         mCurrentBlock.getOwnerObject().getTransform().setPositionZ(mPreviousBlock.getOwnerObject().getTransform().getPositionZ());
+        if (mMoveAlongX) {
+            mCurrentBlock.getOwnerObject().getTransform().setPositionX(mCurrentBlock.getOwnerObject().getTransform().getPositionX() - MOVE_LIMIT);
+        }
+        else {
+            mCurrentBlock.getOwnerObject().getTransform().setPositionZ(mCurrentBlock.getOwnerObject().getTransform().getPositionZ() - MOVE_LIMIT);
+        }
         mCurrentBlock.getTransform().setScaleY(BLOCK_HEIGHT);
 
         mScene.addSceneObject(mCurrentBlock.getOwnerObject());
@@ -333,6 +344,8 @@ public class StackMain extends GVRMain {
         mCurrentBlock.setAnimating(true);
 
         mRootBlock.moveDown();
+
+        mGameSpeed += SPEED_PROGRESSION;
 
         return true;
     }
