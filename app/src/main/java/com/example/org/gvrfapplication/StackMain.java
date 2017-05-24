@@ -1,23 +1,31 @@
 package com.example.org.gvrfapplication;
 
 import org.gearvrf.GVRAndroidResource;
+import org.gearvrf.GVRCollider;
 import org.gearvrf.GVRDirectLight;
 import org.gearvrf.GVRMain;
 import org.gearvrf.GVRContext;
 import org.gearvrf.GVRMaterial;
 import org.gearvrf.GVRMesh;
+import org.gearvrf.GVRMeshCollider;
 import org.gearvrf.GVRPhongShader;
 import org.gearvrf.GVRPointLight;
 import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.GVRTransform;
+import org.gearvrf.scene_objects.GVRTextViewSceneObject;
 import org.gearvrf.utility.Log;
+import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+
+import android.graphics.Color;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import org.gearvrf.scene_objects.GVRCubeSceneObject;
 
+import java.io.IOException;
 import java.util.Random;
 
 
@@ -58,6 +66,7 @@ public class StackMain extends GVRMain {
     private boolean mMoveAlongX = false;
     private boolean mButtonPressed = false;
     private float mGameSpeed = 1.0f;
+    private GVRTextViewSceneObject mScoreBoard;
 
 
     //-------------------------------------------------------------------------
@@ -72,6 +81,8 @@ public class StackMain extends GVRMain {
         initCamera();
         initReticle();
         initScene();
+
+        createUI();
 
         startIntro();
     }
@@ -131,7 +142,8 @@ public class StackMain extends GVRMain {
     private void initCamera() {
         mScene.getMainCameraRig().getLeftCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
         mScene.getMainCameraRig().getRightCamera().setBackgroundColor(0.5f, 0.5f, 1.0f, 1.0f);
-        mScene.getMainCameraRig().getTransform().setPosition(1.0f, 1.0f, 0.0f);
+        mScene.getMainCameraRig().getTransform().setPosition(2.0f, 1.0f, 1.0f);
+        mScene.getMainCameraRig().getTransform().setRotationByAxis(60f, 0.0f, 1.0f, 0.0f);
     }
 
 
@@ -151,6 +163,14 @@ public class StackMain extends GVRMain {
 
         mBlockMesh = new GVRCubeSceneObject(mContext, true).getRenderData().getMesh();
     }
+
+
+    private void createUI() {
+        mScoreBoard = new GVRTextViewSceneObject(mContext, 4.0f, 1.5f, "Tap to start");
+         mScoreBoard.getTransform().setPosition(-1.0f, 1.0f, -2.0f);
+        mScoreBoard.getTransform().setRotationByAxis(30f, 0.0f, 1.0f, 0.0f);
+        mScene.addSceneObject(mScoreBoard);
+     }
 
 
     private void createLights() {
@@ -222,6 +242,8 @@ public class StackMain extends GVRMain {
         mScene.addSceneObject(mRootBlock.getOwnerObject());
         mRootBlock.getTransform().setPositionY(-0.4f);
 
+        setUIText("Tap to start");
+
         setState(State.INTRO);
     }
 
@@ -253,6 +275,7 @@ public class StackMain extends GVRMain {
 
 
     private void startGameOver() {
+        setUIText("GAME OVER score:"+mStackHeight);
         setState(State.GAME_OVER);
     }
 
@@ -347,9 +370,14 @@ public class StackMain extends GVRMain {
 
         mGameSpeed += SPEED_PROGRESSION;
 
+        setUIText("Height "+mStackHeight);
+
         return true;
     }
 
+    private void setUIText(String text) {
+        mScoreBoard.setText(text);
+    }
 
     private void cleanUp()
     {
