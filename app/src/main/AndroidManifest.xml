@@ -9,7 +9,7 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/appName"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:replace="android:icon">
@@ -18,7 +18,7 @@
             android:name=".MainActivity"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
-            android:label="@string/app_name">
+            android:label="@string/appName">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 

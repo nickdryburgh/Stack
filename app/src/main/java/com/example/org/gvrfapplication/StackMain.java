@@ -74,6 +74,7 @@ public class StackMain extends GVRMain {
     private SoundEffect[] mStackSound = new SoundEffect[3];
     private SoundEffect[] mCheerSound = new SoundEffect[3];
     private SoundEffect mGameOverSound = null;
+    private SoundEffect mTitleSound = null;
 
     //-------------------------------------------------------------------------
     // inhereted funcs
@@ -186,6 +187,8 @@ public class StackMain extends GVRMain {
             //mCheerSound[4].setVolume(1.0f);
             mGameOverSound = new SoundEffect(mContext, mAudioEngine, "gameOver.wav", false);
             mGameOverSound.setVolume(1.0f);
+            mTitleSound = new SoundEffect(mContext, mAudioEngine, "title.wav", false);
+            mTitleSound.setVolume(1.0f);
         }
         catch (IOException ex)
         {
@@ -201,7 +204,7 @@ public class StackMain extends GVRMain {
 
 
     private void createUI() {
-        mScoreBoard = new GVRTextViewSceneObject(mContext, 3.0f, 1.5f, "Tap to start");
+        mScoreBoard = new GVRTextViewSceneObject(mContext, 3.0f, 1.5f, "Welcome to StackMojo Tap to start");
         mScoreBoard.getTransform().setPosition(-1.0f, 1.0f, -2.0f);
         mScoreBoard.getTransform().setRotationByAxis(30f, 0.0f, 1.0f, 0.0f);
         mScene.addSceneObject(mScoreBoard);
@@ -269,6 +272,7 @@ public class StackMain extends GVRMain {
 
 
     private void startIntro() {
+        mTitleSound.play();
         mStackHeight = 0;
         mGameSpeed = 1.0f;
         mCurrentDimensions = new Vector2f(START_WIDTH, START_DEPTH);
@@ -277,7 +281,7 @@ public class StackMain extends GVRMain {
         mScene.addSceneObject(mRootBlock.getOwnerObject());
         mRootBlock.getTransform().setPositionY(-0.4f);
 
-        setUIText("Tap to start");
+        setUIText("Welcome to StackMojo\nTap to start");
 
         setState(State.INTRO);
     }
@@ -310,9 +314,9 @@ public class StackMain extends GVRMain {
 
 
     private void startGameOver() {
+        setState(State.GAME_OVER);
         setUIText("GAME OVER score:"+mStackHeight);
         mGameOverSound.play();
-        setState(State.GAME_OVER);
     }
 
 
