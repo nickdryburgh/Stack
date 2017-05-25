@@ -21,6 +21,8 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import android.graphics.Color;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import org.gearvrf.scene_objects.GVRCubeSceneObject;
@@ -66,8 +68,12 @@ public class StackMain extends GVRMain {
     private boolean mMoveAlongX = false;
     private boolean mButtonPressed = false;
     private float mGameSpeed = 1.0f;
+    private int mCombo = 0;
     private GVRTextViewSceneObject mScoreBoard;
-
+    private SoundPool   mAudioEngine;
+    private SoundEffect[] mStackSound = new SoundEffect[3];
+    private SoundEffect[] mCheerSound = new SoundEffect[3];
+    private SoundEffect mGameOverSound = null;
 
     //-------------------------------------------------------------------------
     // inhereted funcs
@@ -80,6 +86,7 @@ public class StackMain extends GVRMain {
 
         initCamera();
         initReticle();
+        initAudio();
         initScene();
 
         createUI();
@@ -157,6 +164,34 @@ public class StackMain extends GVRMain {
         //mScene.getMainCameraRig().addChildObject(headTracker);
     }
 
+    private void initAudio() {
+        mAudioEngine = new SoundPool(4, AudioManager.STREAM_MUSIC, 0);
+        try
+        {
+            mStackSound[0] = new SoundEffect(mContext, mAudioEngine, "stack1.wav", false);
+            mStackSound[0].setVolume(1.0f);
+            mStackSound[1] = new SoundEffect(mContext, mAudioEngine, "stack2.wav", false);
+            mStackSound[1].setVolume(1.0f);
+            mStackSound[2] = new SoundEffect(mContext, mAudioEngine, "stack3.wav", false);
+            mStackSound[2].setVolume(1.0f);
+            mCheerSound[0] = new SoundEffect(mContext, mAudioEngine, "cheer1.wav", false);
+            mCheerSound[0].setVolume(1.0f);
+            mCheerSound[1] = new SoundEffect(mContext, mAudioEngine, "cheer2.wav", false);
+            mCheerSound[1].setVolume(1.0f);
+            mCheerSound[2] = new SoundEffect(mContext, mAudioEngine, "cheer3.wav", false);
+            mCheerSound[2].setVolume(1.0f);
+            //mCheerSound[3] = new SoundEffect(mContext, mAudioEngine, "cheer4.wav", false);
+            //mCheerSound[3].setVolume(1.0f);
+            //mCheerSound[4] = new SoundEffect(mContext, mAudioEngine, "cheer5.mp3", false);
+            //mCheerSound[4].setVolume(1.0f);
+            mGameOverSound = new SoundEffect(mContext, mAudioEngine, "gameOver.wav", false);
+            mGameOverSound.setVolume(1.0f);
+        }
+        catch (IOException ex)
+        {
+            Log.e("Audio", "Cannot load sound");
+        }
+    }
 
     private void initScene() {
         createLights();
@@ -166,8 +201,8 @@ public class StackMain extends GVRMain {
 
 
     private void createUI() {
-        mScoreBoard = new GVRTextViewSceneObject(mContext, 4.0f, 1.5f, "Tap to start");
-         mScoreBoard.getTransform().setPosition(-1.0f, 1.0f, -2.0f);
+        mScoreBoard = new GVRTextViewSceneObject(mContext, 3.0f, 1.5f, "Tap to start");
+        mScoreBoard.getTransform().setPosition(-1.0f, 1.0f, -2.0f);
         mScoreBoard.getTransform().setRotationByAxis(30f, 0.0f, 1.0f, 0.0f);
         mScene.addSceneObject(mScoreBoard);
      }
@@ -276,6 +311,7 @@ public class StackMain extends GVRMain {
 
     private void startGameOver() {
         setUIText("GAME OVER score:"+mStackHeight);
+        mGameOverSound.play();
         setState(State.GAME_OVER);
     }
 
@@ -293,6 +329,7 @@ public class StackMain extends GVRMain {
         Log.d("Stack", "stackBlock "+mStackHeight);
 
          if (mCurrentBlock != mRootBlock) {
+
 
             mCurrentBlock.setAnimating(false);
 
@@ -331,6 +368,11 @@ public class StackMain extends GVRMain {
             mCurrentBlock.getOwnerObject().getTransform().setPositionY(y);
 
              if (overlap) {
+
+                 Random rand = new Random();
+                 int index = rand.nextInt(3);
+                 mStackSound[index].play();
+
                  // trim
                 mCurrentBlock.getOwnerObject().getTransform().setScaleX(newScaleX);
                 mCurrentBlock.getOwnerObject().getTransform().setScaleZ(newScaleZ);
