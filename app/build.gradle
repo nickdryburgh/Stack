@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-System.setProperty("appName", "Stack")
+System.setProperty("appName", "StackMojo")
 
 allprojects {
     repositories {
@@ -139,6 +139,7 @@ if(rootProject.useLocalDependencies) {
         compile 'com.google.code.gson:gson:2.7'
         compile "org.joml:joml-android:${jomlVersion}"
         compile "org.gearvrf:framework:$gearvrfVersion"
+        compile "org.gearvrf:gvrf-physics:$gearvrfVersion"
 
         if (rootProject.hasProperty("only_daydream")) {
             compile "org.gearvrf:backend_daydream:$gearvrfVersion"

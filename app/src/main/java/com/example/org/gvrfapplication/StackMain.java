@@ -2,6 +2,7 @@ package com.example.org.gvrfapplication;
 
 import org.gearvrf.GVRAndroidResource;
 import org.gearvrf.GVRCollider;
+import org.gearvrf.GVRComponent;
 import org.gearvrf.GVRDirectLight;
 import org.gearvrf.GVRMain;
 import org.gearvrf.GVRContext;
@@ -14,11 +15,15 @@ import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.GVRTransform;
+import org.gearvrf.physics.GVRCollisionMatrix;
+import org.gearvrf.physics.GVRWorld;
 import org.gearvrf.scene_objects.GVRTextViewSceneObject;
 import org.gearvrf.utility.Log;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+
+import org.gearvrf.physics.GVRRigidBody;
 
 import android.graphics.Color;
 import android.media.AudioManager;
@@ -31,7 +36,7 @@ import java.io.IOException;
 import java.util.Random;
 
 
-public class StackMain extends GVRMain {
+public class StackMain extends GVRMain { //implements GVRSceneObject.ComponentVisitor{
     //-------------------------------------------------------------------------
     // constants
     //-------------------------------------------------------------------------
@@ -48,6 +53,7 @@ public class StackMain extends GVRMain {
     public static final float START_DEPTH = 0.5f;
     public static final float MOVE_LIMIT = 2.0f;
     public static final float SPEED_PROGRESSION = 0.05f;
+    public static final int BLOCK_COLLISION_GROUP = 1;
 
 
     //-------------------------------------------------------------------------
@@ -65,6 +71,8 @@ public class StackMain extends GVRMain {
     private Block mRootBlock = null;
     private Block mCurrentBlock = null;
     private Block mPreviousBlock = null;
+    private GVRSceneObject mPhysicsBlockObject = null;
+    private GVRRigidBody mPhysicsBlockRigidBody = null;
     private boolean mMoveAlongX = false;
     private boolean mButtonPressed = false;
     private float mGameSpeed = 1.0f;
@@ -108,6 +116,7 @@ public class StackMain extends GVRMain {
                 updateIntro();
                 break;
             case PLAYING:
+                //mScene.getRoot().forAllComponents(this, GVRRigidBody.getComponentType());
                 updatePlaying();
                 break;
             case GAME_OVER:
@@ -197,6 +206,16 @@ public class StackMain extends GVRMain {
     }
 
     private void initScene() {
+
+
+        GVRCollisionMatrix collisionMatrix;
+        collisionMatrix = new GVRCollisionMatrix();
+        //collisionMatrix.setCollisionFilterMask(COLLISION_GROUP_INFINITY_GROUND, (short) 0x0);
+        collisionMatrix.enableCollision(BLOCK_COLLISION_GROUP, BLOCK_COLLISION_GROUP);
+
+        mScene.getRoot().attachComponent(new GVRWorld(mContext, new GVRCollisionMatrix()));
+        mScene.getEventReceiver().addListener(this);
+        
         createLights();
 
         mBlockMesh = new GVRCubeSceneObject(mContext, true).getRenderData().getMesh();
@@ -268,6 +287,46 @@ public class StackMain extends GVRMain {
         blockObject.attachComponent(block);
 
         return block;
+    }
+
+
+    private void createPhysicsBlock(Vector3f position, Vector2f dimensions, float[] color) {
+        Log.d("Stack", "StackMain.createPhysicsBlock()  position:" + position + "  dimensions:" + dimensions + "");
+        if (mPhysicsBlockObject == null) {
+             mPhysicsBlockObject = new GVRSceneObject(mContext, mBlockMesh);
+            GVRRenderData rdata = mPhysicsBlockObject.getRenderData();
+            mPhysicsBlockObject.setName("physicsblock");
+            rdata.setShaderTemplate(GVRPhongShader.class);
+            rdata.setAlphaBlend(true);
+            GVRMaterial material = new GVRMaterial(mContext);
+            rdata.setMaterial(material);
+            rdata.setRenderingOrder(GVRRenderData.GVRRenderingOrder.GEOMETRY);
+
+            mPhysicsBlockRigidBody = new GVRRigidBody(mContext, 0.3f, BLOCK_COLLISION_GROUP);
+            mPhysicsBlockRigidBody.setRestitution(0.5f);
+            mPhysicsBlockRigidBody.setFriction(5.0f);
+            mPhysicsBlockRigidBody.setGravity(0f,-9.8f,0f);
+            mPhysicsBlockRigidBody.applyCentralForce(0f,-9.8f,0f);
+            mPhysicsBlockObject.attachComponent(mPhysicsBlockRigidBody);
+
+            GVRMeshCollider meshCollider = new GVRMeshCollider(mContext, mPhysicsBlockObject.getRenderData().getMesh());
+            mPhysicsBlockObject.attachCollider(meshCollider);
+
+            mScene.addSceneObject(mPhysicsBlockObject);
+
+
+        }
+
+        GVRMaterial material = mPhysicsBlockObject.getRenderData().getMaterial();
+        material.setDiffuseColor(color[0], color[1], color[2], 1.0f);
+        mPhysicsBlockObject.getTransform().setPosition(position.x, position.y, position.z);
+        mPhysicsBlockObject.getTransform().setScale(dimensions.x, BLOCK_HEIGHT, dimensions.y);
+
+        mPhysicsBlockRigidBody.applyCentralForce(0f,-9.8f,0f);
+
+        mPhysicsBlockRigidBody.setCenter(position.x, position.y, position.z);
+        mPhysicsBlockRigidBody.setScale(dimensions.x, BLOCK_HEIGHT, dimensions.y);
+
     }
 
 
@@ -350,15 +409,17 @@ public class StackMain extends GVRMain {
             float newScaleZ = mCurrentBlock.getOwnerObject().getTransform().getScaleZ();
             float newPositionX = mCurrentBlock.getOwnerObject().getTransform().getPositionX();
             float newPositionZ = mCurrentBlock.getOwnerObject().getTransform().getPositionZ();
-            if (mMoveAlongX) {
+             float diffX = 0f;
+             float diffZ = 0f;
+             if (mMoveAlongX) {
                 overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleX();
                 newScaleX = mCurrentBlock.getOwnerObject().getTransform().getScaleX() - distance;
-                float diffX = mCurrentBlock.getOwnerObject().getTransform().getPositionX() - mPreviousBlock.getOwnerObject().getTransform().getPositionX();
+                diffX = mCurrentBlock.getOwnerObject().getTransform().getPositionX() - mPreviousBlock.getOwnerObject().getTransform().getPositionX();
                 newPositionX = newPositionX - diffX/2.0f;
             } else {
                 overlap = distance < mPreviousBlock.getOwnerObject().getTransform().getScaleZ();
                 newScaleZ = mCurrentBlock.getOwnerObject().getTransform().getScaleZ() - distance;
-                float diffZ = mCurrentBlock.getOwnerObject().getTransform().getPositionZ() - mPreviousBlock.getOwnerObject().getTransform().getPositionZ();
+                diffZ = mCurrentBlock.getOwnerObject().getTransform().getPositionZ() - mPreviousBlock.getOwnerObject().getTransform().getPositionZ();
                 newPositionZ = newPositionZ - diffZ/2.0f;
             }
 
@@ -377,12 +438,25 @@ public class StackMain extends GVRMain {
                  int index = rand.nextInt(3);
                  mStackSound[index].play();
 
+                 // physics block
+                 Vector3f position = new Vector3f(mCurrentBlock.getTransform().getPositionX(), mCurrentBlock.getTransform().getPositionY()+mRootBlock.getTransform().getPositionY(), mCurrentBlock.getTransform().getPositionZ());
+                 Vector2f dimensions = new Vector2f(mCurrentBlock.getTransform().getScaleX(), mCurrentBlock.getTransform().getScaleZ());
+                 if (mMoveAlongX) {
+                     position.x = position.x + diffX/2.0f;
+                     dimensions.x = diffX;
+                 }
+                 else {
+                     position.z = position.z + diffZ/2.0f;
+                     dimensions.y = diffZ;
+                 }
+                 createPhysicsBlock(position, dimensions, mCurrentBlock.getOwnerObject().getRenderData().getMaterial().getDiffuseColor());
+
                  // trim
                 mCurrentBlock.getOwnerObject().getTransform().setScaleX(newScaleX);
                 mCurrentBlock.getOwnerObject().getTransform().setScaleZ(newScaleZ);
                 mCurrentBlock.getOwnerObject().getTransform().setPositionX(newPositionX);
                 mCurrentBlock.getOwnerObject().getTransform().setPositionZ(newPositionZ);
-            }
+             }
             else {
                 return false;
             }
@@ -432,6 +506,16 @@ public class StackMain extends GVRMain {
         mPreviousBlock = null;
         mCurrentBlock = null;
     }
+
+    /*@Override
+    public boolean visit(GVRComponent gvrComponent) {
+        if (gvrComponent.getTransform().getPositionY() < SCORE_OFFSET) {
+            mScene.removeSceneObject(gvrComponent.getOwnerObject());
+            doScore((GVRRigidBody) gvrComponent);
+        }
+
+        return false;
+    }*/
 
 }
 
